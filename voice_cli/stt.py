@@ -4,7 +4,7 @@ import asyncio
 import io
 import wave
 from typing import Optional
-from mlx_audio.models import load_model as load_stt_model
+import numpy as np
 
 
 class SpeechToText:
@@ -21,9 +21,15 @@ class SpeechToText:
     def _load_model(self):
         """Load Whisper model synchronously."""
         try:
-            return load_stt_model("whisper")
-        except Exception:
-            return None
+            from mlx_audio.models import load_model
+            return load_model("whisper")
+        except ImportError:
+            try:
+                # Try direct mlx_audio import
+                import mlx_audio
+                return mlx_audio.load("whisper")
+            except Exception:
+                return None
 
     async def transcribe(self, audio_bytes: bytes) -> Optional[str]:
         """Transcribe WAV audio bytes to text."""
@@ -43,12 +49,12 @@ class SpeechToText:
                     with wave.open(wav_buffer, "rb") as wav_file:
                         sample_rate = wav_file.getframerate()
                         audio_data = wav_file.readframes(wav_file.getnframes())
-                        import numpy as np
 
                         audio_array = np.frombuffer(audio_data, dtype=np.int16)
                         audio_float = audio_array.astype(np.float32) / 32767
 
-                        # Transcribe
+                        # Transcribe using mlx-audio
+                        # mlx-audio expects numpy array
                         result = self.model.transcribe(audio_float)
                         return result.get("text", "").strip() if result else None
             except Exception as e:

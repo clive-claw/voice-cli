@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import threading
 import numpy as np
 import sounddevice as sd
 from typing import Tuple
@@ -15,8 +16,13 @@ class AudioCapture:
     CHUNK_SIZE = 1024
     CHANNELS = 1
 
-    async def record_until_signal(self, stop_event: asyncio.Event) -> bytes:
-        """Record audio until stop_event is set. Returns WAV bytes."""
+    async def record_until_signal(self, stop_event: threading.Event) -> bytes:
+        """Record audio until stop_event is set. Returns WAV bytes.
+
+        stop_event must be a threading.Event (not asyncio.Event) because
+        record_chunk runs in a thread executor and asyncio.Event is not
+        thread-safe.
+        """
         loop = asyncio.get_event_loop()
         audio_buffer = []
 
@@ -33,11 +39,10 @@ class AudioCapture:
                 sd.wait()  # Wait for recording to complete
                 audio_buffer.append(chunk)
 
-        # Run recording in executor
-        record_task = loop.run_in_executor(None, record_chunk)
-
-        # Wait for stop signal
-        await stop_event.wait()
+        # Run recording in executor and wait for it to finish.
+        # The caller is responsible for setting stop_event (via
+        # loop.call_soon_threadsafe) to terminate the loop.
+        await loop.run_in_executor(None, record_chunk)
 
         # Convert recorded chunks to WAV format
         if audio_buffer:

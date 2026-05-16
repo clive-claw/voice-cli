@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import threading
 from .keyboard import KeyboardListener
 from .audio import AudioCapture, AudioPlayback
 from .stt import SpeechToText
@@ -42,16 +43,20 @@ class VoiceCLI:
             await self.keyboard.wait_for_spacebar_hold()
             print("\n🎤 Recording... (release spacebar to send)", file=sys.stderr)
 
-            # Record audio while spacebar is held
-            stop_event = asyncio.Event()
+            # Record audio while spacebar is held. Use a threading.Event
+            # because the recording loop runs in a thread executor and
+            # asyncio.Event is not thread-safe.
+            loop = asyncio.get_event_loop()
+            threading_stop = threading.Event()
 
             async def record_until_release():
                 """Record until spacebar is released."""
                 await self.keyboard.wait_for_spacebar_release()
-                stop_event.set()
+                # Signal the recording thread from the event loop thread.
+                loop.call_soon_threadsafe(threading_stop.set)
 
             # Start recording task and spacebar release watcher concurrently
-            record_task = asyncio.create_task(self.audio_capture.record_until_signal(stop_event))
+            record_task = asyncio.create_task(self.audio_capture.record_until_signal(threading_stop))
             release_task = asyncio.create_task(record_until_release())
 
             # Wait for both to complete
@@ -65,7 +70,11 @@ class VoiceCLI:
             print("✓ Audio captured", file=sys.stderr)
 
             # Transcribe
-            prompt = await self.stt.transcribe(audio_bytes)
+            try:
+                prompt = await self.stt.transcribe(audio_bytes)
+            except RuntimeError as e:
+                ErrorHandler.handle_stt_error(str(e))
+                return
             if not prompt:
                 ErrorHandler.handle_stt_error("Transcription failed")
                 return
@@ -89,7 +98,11 @@ class VoiceCLI:
             print("", file=sys.stderr)  # Blank line after response
 
             # Generate and play speech
-            audio_bytes = await self.tts.synthesize(accumulated_text)
+            try:
+                audio_bytes = await self.tts.synthesize(accumulated_text)
+            except RuntimeError as e:
+                ErrorHandler.handle_tts_error(str(e))
+                return
             if audio_bytes:
                 print("🔊 Playing audio...", file=sys.stderr)
                 await self.audio_playback.play(audio_bytes)

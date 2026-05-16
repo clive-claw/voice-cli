@@ -58,6 +58,6 @@ class SpeechToText:
                         result = self.model.transcribe(audio_float)
                         return result.get("text", "").strip() if result else None
             except Exception as e:
-                return None
+                raise RuntimeError(str(e)) from e
 
         return await loop.run_in_executor(None, transcribe_sync)

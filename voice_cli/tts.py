@@ -68,6 +68,6 @@ class TextToSpeech:
                 return wav_buffer.getvalue()
 
             except Exception as e:
-                return None
+                raise RuntimeError(str(e)) from e
 
         return await loop.run_in_executor(None, synthesize_sync)

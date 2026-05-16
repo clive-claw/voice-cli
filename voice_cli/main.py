@@ -50,10 +50,8 @@ class VoiceCLI:
                 await self.keyboard.wait_for_spacebar_release()
                 stop_event.set()
 
-            # Start recording task
+            # Start recording task and spacebar release watcher concurrently
             record_task = asyncio.create_task(self.audio_capture.record_until_signal(stop_event))
-
-            # Start spacebar release watcher
             release_task = asyncio.create_task(record_until_release())
 
             # Wait for both to complete
@@ -74,19 +72,19 @@ class VoiceCLI:
 
             print(f"✓ Transcribed: {prompt}", file=sys.stderr)
 
-            # Spawn Claude subprocess and stream response
+            # Spawn Claude subprocess and get response
             print("\n📝 Claude:", file=sys.stderr)
-            accumulated_text = ""
             try:
-                async for line in self.subprocess.spawn_and_stream(prompt):
-                    print(line)  # Display to terminal in real-time
-                    accumulated_text += line + "\n"
+                lines = await self.subprocess.spawn_and_get_response(prompt)
             except Exception as e:
                 ErrorHandler.handle_subprocess_error(str(e))
                 return
 
-            if not accumulated_text:
+            if not lines:
                 return
+
+            # Capture and accumulate response
+            accumulated_text, _ = self.response_capture.capture_and_accumulate(lines)
 
             print("", file=sys.stderr)  # Blank line after response
 

@@ -2,7 +2,7 @@
 
 import asyncio
 import subprocess
-from typing import AsyncIterator, Optional
+from typing import Optional, List
 
 
 class ClaudeSubprocess:
@@ -11,37 +11,38 @@ class ClaudeSubprocess:
     def __init__(self):
         self.process: Optional[subprocess.Popen] = None
 
-    async def spawn_and_stream(self, prompt: str) -> AsyncIterator[str]:
-        """Spawn claude -p with prompt and stream stdout line-by-line."""
+    async def spawn_and_get_response(self, prompt: str) -> List[str]:
+        """Spawn claude -p with prompt and return all output lines."""
         loop = asyncio.get_event_loop()
 
-        try:
-            # Spawn subprocess
-            self.process = subprocess.Popen(
-                ["claude", "-p", prompt],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,  # Line buffered
-            )
+        def run_subprocess():
+            """Run subprocess synchronously."""
+            try:
+                # Spawn subprocess
+                process = subprocess.Popen(
+                    ["claude", "-p", prompt],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                )
 
-            # Stream stdout line-by-line
-            if self.process.stdout:
-                for line in self.process.stdout:
-                    yield line.rstrip("\n")
+                lines = []
+                # Read stdout line-by-line
+                if process.stdout:
+                    for line in process.stdout:
+                        lines.append(line.rstrip("\n"))
 
-            # Wait for process to complete
-            self.process.wait()
+                # Wait for process to complete
+                process.wait()
+                return lines
 
-        except FileNotFoundError:
-            raise RuntimeError("claude CLI not found. Is it installed?")
-        except Exception as e:
-            raise RuntimeError(f"Subprocess error: {e}")
-        finally:
-            if self.process:
-                self.process.stdout.close() if self.process.stdout else None
-                self.process.stderr.close() if self.process.stderr else None
-                self.process = None
+            except FileNotFoundError:
+                raise RuntimeError("claude CLI not found. Is it installed?")
+            except Exception as e:
+                raise RuntimeError(f"Subprocess error: {e}")
+
+        return await loop.run_in_executor(None, run_subprocess)
 
     async def cleanup(self) -> None:
         """Clean up subprocess if still running."""

@@ -1,22 +1,18 @@
 """Response capture and accumulation."""
 
-from typing import AsyncIterator
+from typing import List
 
 
 class ResponseCapture:
     """Capture and accumulate subprocess response."""
 
-    async def capture_and_accumulate(
-        self, line_iterator: AsyncIterator[str]
-    ) -> tuple[str, list[str]]:
+    def capture_and_accumulate(self, lines: List[str]) -> tuple[str, List[str]]:
         """
-        Consume lines from iterator, print each, and accumulate for TTS.
+        Display lines and accumulate for TTS.
         Returns (accumulated_text, lines_list).
         """
-        lines = []
-        async for line in line_iterator:
-            lines.append(line)
-            # Print to terminal as it arrives (real-time display)
+        for line in lines:
+            # Print to terminal
             print(line)
 
         # Join all lines for TTS

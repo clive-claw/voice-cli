@@ -91,10 +91,27 @@ Verify mlx-audio is installed and working:
 python3 -c "from mlx_audio.models import load_model; m = load_model('whisper'); print('✓ mlx-audio loaded')"
 ```
 
-### TTS not working
-Kokoro TTS is optional for MVP. If not available, TTS will be skipped with an error message. To install Kokoro:
+### TTS model files
+
+Voice CLI uses `kokoro-onnx` for local TTS. The model files are not bundled — download them once (~350MB total) before first use:
+
 ```bash
-# Check Kokoro documentation for latest installation method
+mkdir -p ~/.voice-cli/models
+curl -L -o ~/.voice-cli/models/kokoro-v1.0.onnx \
+  https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+curl -L -o ~/.voice-cli/models/voices-v1.0.bin \
+  https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+```
+
+The default voice is `af_heart`. Override with `VOICE_CLI_VOICE=<voice_name>` (54 voices available).
+
+TTS is optional — if the model files are missing or `kokoro-onnx` is not installed, synthesis is silently skipped.
+
+### TTS not working
+Verify `kokoro-onnx` is installed and model files are present:
+```bash
+python3 -c "from kokoro_onnx import Kokoro; print('kokoro-onnx OK')"
+ls ~/.voice-cli/models/
 ```
 
 ### Keyboard listener not detecting spacebar

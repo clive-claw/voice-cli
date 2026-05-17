@@ -13,7 +13,8 @@ dependencies = [
     "anthropic>=0.34.0",
     "pynput>=1.7.6",
     "sounddevice>=0.4.5",
-    "numpy>=1.21.0",
+    "numpy>=2.0.2",
+    "kokoro-onnx>=0.4.7",
 ]
 
 [project.optional-dependencies]

@@ -10,6 +10,7 @@ from .subprocess_mgr import ClaudeSubprocess
 from .response import ResponseCapture
 from .tts import TextToSpeech
 from .error import ErrorHandler
+from . import cache
 
 
 class VoiceCLI:
@@ -29,6 +30,7 @@ class VoiceCLI:
         """Initialize all modules."""
         try:
             print("Initializing Voice CLI...", file=sys.stderr)
+            cache.gc_stale()
             await self.stt.initialize()
             await self.tts.initialize()
             print("Voice CLI ready. Hold SPACEBAR to speak, release to send.", file=sys.stderr)
@@ -104,6 +106,7 @@ class VoiceCLI:
                 ErrorHandler.handle_tts_error(str(e))
                 return
             if audio_bytes:
+                cache.write_last(audio_bytes, prompt, accumulated_text)
                 print("🔊 Playing audio...", file=sys.stderr)
                 await self.audio_playback.play(audio_bytes)
                 print("✓ Done", file=sys.stderr)

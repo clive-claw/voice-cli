@@ -9,7 +9,7 @@ from .stt import SpeechToText
 from .subprocess_mgr import ClaudeSubprocess
 from .response import ResponseCapture
 from .tts import TextToSpeech
-from .error import ErrorHandler
+from .error import report_failure
 from . import cache
 
 
@@ -35,7 +35,7 @@ class VoiceCLI:
             await self.tts.initialize()
             print("Voice CLI ready. Hold SPACEBAR to speak, release to send.", file=sys.stderr)
         except Exception as e:
-            ErrorHandler.handle_error("INIT", str(e))
+            report_failure("INIT", e)
             self.running = False
 
     async def run_cycle(self) -> None:
@@ -66,7 +66,7 @@ class VoiceCLI:
             await release_task
 
             if not audio_bytes:
-                ErrorHandler.handle_stt_error("No audio captured")
+                report_failure("STT", RuntimeError("No audio captured"))
                 return
 
             print("✓ Audio captured", file=sys.stderr)
@@ -75,10 +75,10 @@ class VoiceCLI:
             try:
                 prompt = await self.stt.transcribe(audio_bytes)
             except RuntimeError as e:
-                ErrorHandler.handle_stt_error(str(e))
+                report_failure("STT", e)
                 return
             if not prompt:
-                ErrorHandler.handle_stt_error("Transcription failed")
+                report_failure("STT", RuntimeError("Transcription failed"))
                 return
 
             print(f"✓ Transcribed: {prompt}", file=sys.stderr)
@@ -88,7 +88,7 @@ class VoiceCLI:
             try:
                 lines = await self.subprocess.spawn_and_get_response(prompt)
             except Exception as e:
-                ErrorHandler.handle_subprocess_error(str(e))
+                report_failure("SUBPROCESS", e)
                 return
 
             if not lines:
@@ -103,7 +103,7 @@ class VoiceCLI:
             try:
                 audio_bytes = await self.tts.synthesize(accumulated_text)
             except RuntimeError as e:
-                ErrorHandler.handle_tts_error(str(e))
+                report_failure("TTS", e)
                 return
             if audio_bytes:
                 cache.write_last(audio_bytes, prompt, accumulated_text)
@@ -111,12 +111,12 @@ class VoiceCLI:
                 await self.audio_playback.play(audio_bytes)
                 print("✓ Done", file=sys.stderr)
             else:
-                ErrorHandler.handle_tts_error("Could not generate speech")
+                report_failure("TTS", RuntimeError("Could not generate speech"))
 
         except KeyboardInterrupt:
             self.running = False
         except Exception as e:
-            ErrorHandler.handle_error("CYCLE", str(e))
+            report_failure("CYCLE", e)
 
     async def run(self) -> None:
         """Main event loop."""
@@ -130,7 +130,7 @@ class VoiceCLI:
                 print("\nShutting down...", file=sys.stderr)
                 self.running = False
             except Exception as e:
-                ErrorHandler.handle_error("RUN", str(e))
+                report_failure("RUN", e)
 
         await self.subprocess.cleanup()
 

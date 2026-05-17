@@ -59,7 +59,7 @@ class TextToSpeech:
 
     async def synthesize(self, text: str) -> Optional[bytes]:
         """Generate speech from text, return WAV bytes."""
-        if not text or self._wrapper._model is None:
+        if not text:
             return None
         try:
             return await self._wrapper.run(text)

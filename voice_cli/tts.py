@@ -10,7 +10,6 @@ import numpy as np
 
 from .async_mlx_model import AsyncMLXModel
 
-_SAMPLE_RATE = 24000
 _MODEL_PATH = Path.home() / ".voice-cli" / "models" / "kokoro-v1.0.onnx"
 _VOICES_PATH = Path.home() / ".voice-cli" / "models" / "voices-v1.0.bin"
 _DEFAULT_VOICE = "af_heart"

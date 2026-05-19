@@ -13,6 +13,7 @@ from .async_mlx_model import AsyncMLXModel
 _MODEL_PATH = Path.home() / ".voice-cli" / "models" / "kokoro-v1.0.onnx"
 _VOICES_PATH = Path.home() / ".voice-cli" / "models" / "voices-v1.0.bin"
 _DEFAULT_VOICE = "af_heart"
+_DEFAULT_SPEED = 1.5
 
 
 def _load_kokoro():
@@ -27,7 +28,11 @@ def _load_kokoro():
 def _synthesize(model, text: str) -> Optional[bytes]:
     """Generate WAV bytes from text using the loaded kokoro-onnx model."""
     voice = os.environ.get("VOICE_CLI_VOICE", _DEFAULT_VOICE)
-    audio, sr = model.create(text, voice=voice, speed=1.0)
+    try:
+        speed = float(os.environ.get("VOICE_CLI_SPEED", _DEFAULT_SPEED))
+    except ValueError:
+        speed = _DEFAULT_SPEED
+    audio, sr = model.create(text, voice=voice, speed=speed)
 
     pcm = np.clip(audio * 32767, -32768, 32767).astype(np.int16)
 
